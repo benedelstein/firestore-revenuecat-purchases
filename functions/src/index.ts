@@ -30,6 +30,10 @@ const SET_CUSTOM_CLAIMS = process.env.SET_CUSTOM_CLAIMS as
   | "DISABLED";
 const EXTENSION_VERSION = process.env.EXTENSION_VERSION || "0.1.6";
 
+const findFirebaseUid = (aliases: string[]): string | undefined => {
+  return aliases.find(e=>!e.startsWith("$RCAnonymous"));
+}
+
 const getCustomersCollection = ({
   firestore,
   customersCollectionConfig,
