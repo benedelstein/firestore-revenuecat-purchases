@@ -122,8 +122,13 @@ export const handler = functions.https.onRequest(async (request, response) => {
 
     const eventPayload = bodyPayload.event;
     const customerPayload = bodyPayload.customer_info;
-    const destinationUserId = eventPayload.app_user_id;
+    const destinationUserId = eventPayload.aliases;
 
+    if(!destinationUserId) {
+      functions.logger.error(`no firebase uid found ${eventPayload.aliases}`);
+      return;
+    }
+    
     const eventType = (eventPayload.type || "").toLowerCase();
 
     if (EVENTS_COLLECTION) {
