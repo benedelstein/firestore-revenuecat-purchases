@@ -17,6 +17,20 @@ export class InvalidTokenError extends ExtensionError {
     }
 }
 
+export class InvalidUIDError extends ExtensionError {
+    constructor() {
+        super("User has no valid non-anonymous uid to work with.");
+    }
+
+    code() {
+        return 1;
+    }
+
+    httpStatusCode() {
+        return 401;
+    }
+}
+
 export class InvalidApiVersionError extends ExtensionError {
     constructor(extensionVersion: string, apiVersion: string) {
         const apiVersionDisplay = apiVersion ?? "(Not specified)";

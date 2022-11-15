@@ -9,6 +9,7 @@ import { logMessage } from "./log-message";
 
 import { getEventarc } from "firebase-admin/eventarc";
 import { Auth } from "firebase-admin/lib/auth/auth";
+import { InvalidUIDError } from "./exceptions";
 
 admin.initializeApp();
 
@@ -126,6 +127,8 @@ export const handler = functions.https.onRequest(async (request, response) => {
 
     if(!destinationUserId) {
       functions.logger.error(`no firebase uid found ${eventPayload.aliases}`);
+      
+      requestErrorHandler(InvalidUIDError(), response);
       return;
     }
     
@@ -147,14 +150,20 @@ export const handler = functions.https.onRequest(async (request, response) => {
         });
       }
 
+      // update the old user with removed entitlements.
       if (is(bodyPayload, "TRANSFER")) {
-        await writeToCollection({
-          firestore,
-          customersCollectionConfig: CUSTOMERS_COLLECTION,
-          userId: bodyPayload.event.origin_app_user_id,
-          customerPayload: bodyPayload.origin_customer_info,
-          aliases: bodyPayload.event.transferred_from,
-        });
+        const oldUserId = findFirebaseUid(bodyPayload.transferred_from);
+        if (oldUserId) {
+          await writeToCollection({
+            firestore,
+            customersCollectionConfig: CUSTOMERS_COLLECTION,
+            userId: oldUserId,
+            customerPayload: bodyPayload.origin_customer_info,
+            aliases: bodyPayload.event.transferred_from,
+          });
+        } else {
+          functions.logger.error(`no old customer uid for transfer ${bodyPayload.transferred_from}`);
+        }
       }
     }
 
@@ -168,14 +177,19 @@ export const handler = functions.https.onRequest(async (request, response) => {
       });
 
       if (is(bodyPayload, "TRANSFER")) {
-        const originActiveEntitlements = getActiveEntitlements({
-          customerPayload: bodyPayload.origin_customer_info,
-        });
-        await setCustomClaims({
-          auth,
-          userId: bodyPayload.event.origin_app_user_id,
-          entitlements: originActiveEntitlements,
-        });
+        const oldUserId = findFirebaseUid(bodyPayload.transferred_from);
+        if(oldUserId) {
+          const originActiveEntitlements = getActiveEntitlements({
+            customerPayload: bodyPayload.origin_customer_info,
+          });
+          await setCustomClaims({
+            auth,
+            userId: oldUserId,
+            entitlements: originActiveEntitlements,
+          });
+        } else {
+          functions.logger.error(`no old customer uid for transfer ${bodyPayload.transferred_from}`);
+        }
       }
     }
 
